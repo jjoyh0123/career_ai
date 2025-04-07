@@ -1,0 +1,51 @@
+# 1. Python 캐시 및 설정
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# 2. 환경 변수 파일
+.env
+.env.*
+application-secret.yml
+
+# 3. 가상환경 폴더
+.venv/
+venv/
+ENV/
+env/
+
+# 4. IDE 설정
+.vscode/
+.idea/
+*.iml
+
+# 5. 운영체제 관련
+.DS_Store
+Thumbs.db
+
+# 6. 로그, 백업, 캐시
+*.log
+*.bak
+*.tmp
+*.swp
+.cache/
+coverage.xml
+htmlcov/
+
+# 7. 데이터베이스 (예: SQLite 로컬 파일 사용 시)
+*.db
+*.sqlite3
+
+# 8. Docker 관련
+*.pid
+*.tar
+docker-compose.override.yml
+
+# 9. 빌드 결과물 (추가적으로 __pyinstaller 등 쓸 경우 대비)
+build/
+dist/
+*.egg-info/
+
+# 10. 기타
+node_modules/
