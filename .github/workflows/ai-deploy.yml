@@ -1,13 +1,13 @@
-name: AI Deploy to EC2
+name: Deploy AI Service to EC2
 
 on:
   push:
     branches:
-      - main  # main 브랜치에 push 될 때만 실행
+      - main
 
 jobs:
   deploy:
-    name: Deploy AI Service to EC2
+    name: Deploy AI to EC2
     runs-on: ubuntu-latest
 
     steps:
@@ -19,20 +19,27 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Deploy to EC2 and Restart AI Service
+      - name: Deploy AI Service via SSH
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
             cd ~/meet-u-career-ai
 
+            echo "🛠Changing remote to SSH (if not set)"
+            git remote set-url origin git@github.com:dpdlcl01/meet-u-career-ai.git
+
             echo "Pulling latest AI service code"
             git pull origin main
 
-            echo "Rebuilding AI container only"
-            cd ~/meet-u-backend
-            docker-compose stop ai-service
-            docker-compose build ai-service
-            docker-compose up -d ai-service
+            echo "Stopping existing AI container"
+            docker stop meet-u-career-ai || true
+            docker rm meet-u-career-ai || true
 
-            echo "Cleaning up unused Docker images"
+            echo "Rebuilding AI container"
+            docker-compose -f ~/meet-u-backend/docker-compose.yml build ai-service
+
+            echo "Starting only AI service"
+            docker-compose -f ~/meet-u-backend/docker-compose.yml up -d ai-service
+
+            echo "Cleaning up dangling images"
             docker image prune -f
           EOF
