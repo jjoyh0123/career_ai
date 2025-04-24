@@ -1,0 +1,38 @@
+name: AI Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 push 될 때만 실행
+
+jobs:
+  deploy:
+    name: Deploy AI Service to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy to EC2 and Restart AI Service
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/meet-u-career-ai
+
+            echo "Pulling latest AI service code"
+            git pull origin main
+
+            echo "Rebuilding AI container only"
+            cd ~/meet-u-backend
+            docker-compose stop ai-service
+            docker-compose build ai-service
+            docker-compose up -d ai-service
+
+            echo "Cleaning up unused Docker images"
+            docker image prune -f
+          EOF
