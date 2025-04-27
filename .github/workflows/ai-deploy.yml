@@ -1,0 +1,45 @@
+name: Deploy AI Service to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy AI to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy AI Service via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/meet-u-career-ai
+
+            echo "🛠Changing remote to SSH (if not set)"
+            git remote set-url origin git@github.com:dpdlcl01/meet-u-career-ai.git
+
+            echo "Pulling latest AI service code"
+            git pull origin main
+
+            echo "Stopping existing AI container"
+            docker stop meet-u-career-ai || true
+            docker rm meet-u-career-ai || true
+
+            echo "Rebuilding AI container"
+            docker-compose -f ~/meet-u-backend/docker-compose.yml build ai-service
+
+            echo "Starting only AI service"
+            docker-compose -f ~/meet-u-backend/docker-compose.yml up -d ai-service
+
+            echo "Cleaning up dangling images"
+            docker image prune -f
+          EOF
