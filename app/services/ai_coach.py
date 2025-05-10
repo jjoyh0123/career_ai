@@ -38,12 +38,13 @@ def generate_coaching_response(section_title: str, content: str, max_tokens=1000
            - 반드시 **JSON 객체 하나만 출력**해.
            - JSON 외의 텍스트(예: "네", "물론입니다", "다음은 작성한 결과입니다" 등)는 절대 포함하지 마라.
            - 중괄호로 감싼 JSON 객체 하나만 응답해야 한다.
-        
-        응답 예시:
+           - 다른 모든 텍스트(예: "다음은 결과입니다", "안녕하세요" 등)는 절대 추가하지 않는다.
+        형식은 다음과 같다:
         {{
-          "feedback": "성격의 강점과 약점을 일관성 있게 서술하여 신뢰감을 주는 좋은 작성입니다. 다만, 약점 극복 사례를 조금 더 구체적으로 서술하면 설득력이 더욱 높아질 수 있습니다.",
-          "revisedContent": "저는 책임감과 꼼꼼함을 강점으로 삼고 있으며, 완벽주의 성향으로 인한 작업 지연을 극복하기 위해 일정 관리 앱과 우선순위 조정을 적극 활용하고 있습니다."
+          "feedback": "작성자의 강점을 인정하고, 개선 방향을 제안하는 구체적인 피드백",
+          "revisedContent": "기존 작성 내용을 다듬고 구체적인 사례를 추가하여 자연스럽게 수정한 문장"
         }}
+        규칙을 어기면 시스템 오류로 간주된다.
         """
 
         # GPT 호출
@@ -60,23 +61,19 @@ def generate_coaching_response(section_title: str, content: str, max_tokens=1000
         # GPT 응답 텍스트 추출
         response_text = response.choices[0].message.content.strip()
 
-        # {} JSON 부분만 정규식으로 추출
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-
-        if json_match:
-            # 정상 추출되면 JSON 파싱
-            parsed_response = json.loads(json_match.group())
-            return parsed_response
-        else:
-            # JSON 포맷 아님
+        try:
+            parsed = json.loads(response_text)
+            return parsed
+        except json.JSONDecodeError:
+            # 바로 실패 처리
             return {
-                "feedback": "GPT 응답이 예상한 JSON 형식이 아닙니다.",
-                "revisedContent": "[응답 오류] 다시 시도해주세요."
+                "feedback": "현재 작성 내용을 기반으로 개선 중입니다. 잠시 후 다시 시도해 주세요.",
+                "revisedContent": content
             }
-
     except Exception as e:
-        # 전체 에러 포착
+        # 전체 예외 포착
+        print(f"[ERROR] GPT 호출 중 예외 발생: {str(e)}")  # 서버 로그용
         return {
-            "feedback": "GPT 호출 중 예기치 않은 오류가 발생했습니다.",
-            "revisedContent": f"[GPT 호출 오류] {str(e)}"
+            "feedback": "현재 시스템 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
+            "revisedContent": content
         }

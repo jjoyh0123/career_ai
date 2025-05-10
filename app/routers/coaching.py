@@ -16,14 +16,12 @@ async def get_coaching(request: CoachingRequest):
 
     try:
         return CoachingResponse(
-            contentId=request.contentId,
             feedback=result.get("feedback", ""),
             revisedContent=result.get("revisedContent", "")
         )
     except json.JSONDecodeError:
         # 혹시 GPT 응답이 JSON이 아닐 경우 대비
         return CoachingResponse(
-            contentId=request.contentId,
             feedback="[GPT 응답 오류] 형식을 인식할 수 없습니다.",
             revisedContent=""
         )
