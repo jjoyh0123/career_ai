@@ -1,6 +1,8 @@
+import re
 from datetime import datetime
 from typing import List
 
+from fastapi import HTTPException
 from sqlalchemy import Table, MetaData, select, and_, or_
 from sqlalchemy.orm import Session
 
@@ -95,16 +97,70 @@ def recommend_jobs(profile_id: int, db: Session) -> RecommendationResponse:
         if cat_score == 0:
             continue  # 직무 불일치 시 제외
 
-        # 7. 지역 스코어링: same 구=1.0, same 도/광역시=0.5
-        if jp["locationCode"] == desired_loc_code:
-            local_score = 1.0
+        # 7. 지역 스코어링: exact id match → 1.0, same province → 0.5, else → 0.0
+        job_loc = db.execute(
+            select(location_tbl)
+            .where(location_tbl.c.locationCode == jp["locationCode"])
+        ).mappings().first()
+
+        if job_loc:
+            # (1) 프로필이 원하는 location.id와 정확히 일치
+            if job_loc["id"] == desired_loc_id:
+                local_score = 1.0
+            # (2) id는 다르지만 province(도/광역시)만 일치
+            elif job_loc["province"] == desired_province:
+                local_score = 0.5
+            else:
+                local_score = 0.0
         else:
-            local_score = 0.5
+            # location 테이블에 없는 코드면 0점
+            local_score = 0.0
 
-        # 8. 연봉 조건 만족 여부
-        salary_score = 1 if jp["salaryCode"] >= desired_salary_code else 0
+        # 8. 연봉 스코어링: 희망 연봉 대비 공고 연봉 비교
+        salary_code = jp["salaryCode"]
+        desired_code = desired_salary_code
 
-        # 9. raw score 계산 (최대: 1.0 + 1 + 1 + 1 = 4.0)
+        # 1) 연단위 연봉코드를 만원 단위 숫자로 매핑
+        annual_map = {
+            9: 2600,  10: 2800, 11: 3000, 12: 3200,
+            13: 3400, 14: 3600, 15: 3800, 16: 4000,
+            17: 5000, 18: 6000, 19: 7000, 20: 8000,
+            21: 9000, 22:10000
+        }
+
+        salary_score = 0
+
+        # 연단위(9~22)끼리 비교
+        if salary_code in annual_map and desired_code in annual_map:
+            if annual_map[salary_code] >= annual_map[desired_code]:
+                salary_score = 1
+
+        # 월급(101), 주급(102), 일급(103), 시급(104)
+        elif salary_code in (101, 102, 103, 104) and desired_code in annual_map:
+            # salaryRange 예: '월급 230만원'
+            m = re.search(r'(\d+(?:\.\d+)?)', jp["salaryRange"] or "")
+            if m:
+                actual = float(m.group(1))  # 공고에서 제시한 단위당 금액 (만원)
+                # 희망 연봉 → 해당 단위로 환산
+                desired_annual = annual_map[desired_code]
+                converted = {
+                    101: desired_annual / 12,        # 월
+                    102: desired_annual / 52,        # 주
+                    103: desired_annual / 365,       # 일
+                    104: (desired_annual * 10000) / (365 * 24) / 10000  # 시급 (만원 단위 유지)
+                }[salary_code]
+                if actual >= converted:
+                    salary_score = 1
+
+        # 면접후결정(99) / 회사내규(0)는 낮은 점수(0) 유지
+
+        # 건당(105)
+        elif salary_code == 105:
+            # 희망 연봉 코드도 105여야 최고 점수
+            if desired_code == 105:
+                salary_score = 1
+
+        # 9. raw score 계산 (최대: cos_sim + 1 + 1 + 1)
         raw_score = cos_sim + cat_score + salary_score + local_score
 
         # 10. 100점 만점으로 스케일링
