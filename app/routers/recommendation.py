@@ -17,14 +17,11 @@ def get_db():
     "/recommendations/{profile_id}",
     response_model=RecommendationResponse,
     summary="프로필 기반 채용공고 추천",
-    description="profile_id를 받아 조건에 맞춰 점수를 계산한 뒤, 내림차순 정렬하여 반환합니다."
+    description="profile_id를 받아 Python 기반 코사인 유사도 + 직무 매칭 + 연봉 페널티 + 지역 계층 매칭을 계산하여 내림차순 정렬 후 반환합니다."
 )
 def recommendation_endpoint(
         profile_id: int,
         db: Session = Depends(get_db),
 ):
     resp = recommend_jobs(profile_id, db)
-    if resp.total == 0:
-        # 공고가 하나도 없을 때도 200 으로 빈 리스트 반환
-        return resp
     return resp
