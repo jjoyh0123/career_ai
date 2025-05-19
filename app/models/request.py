@@ -12,3 +12,6 @@ class FitAnalysisRequest(BaseModel):
     content: str
     jobTitle: str
     jobPostingText: str | None = None  # Python 3.10 이상
+
+class JobRecommendationRequest(BaseModel):
+    profileId: int
