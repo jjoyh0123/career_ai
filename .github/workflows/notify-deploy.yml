@@ -1,0 +1,16 @@
+name: Notify backend to deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to backend
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          repository: dpdlcl01/meet-u-career-backend
+          event-type: ai-service-updated
