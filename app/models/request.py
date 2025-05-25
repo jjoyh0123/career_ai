@@ -1,9 +1,11 @@
+from typing import Optional
 from pydantic import BaseModel
 
 class CoachingRequest(BaseModel):
-    contentId: int
     sectionTitle: str
     content: str
+    contentId: Optional[int] = None  # 필수 아님으로 변경
+
 
 class FitAnalysisRequest(BaseModel):
     contentId: int

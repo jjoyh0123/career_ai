@@ -1,9 +1,10 @@
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List
 
 class CoachingResponse(BaseModel):
-    contentId: int
+    contentId: Optional[int] = None  # 선택적 필드로 변경
     feedback: str
     revisedContent: str
 
